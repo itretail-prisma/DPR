@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 {
   "name": "prisma-dpr",
   "version": "0.1.0",
@@ -54,7 +54,7 @@
     "postcss": "^8.5.6"
   }
 }
-=======
+
 {
   "name": "prisma-dpr",
   "version": "0.1.0",
@@ -110,4 +110,3 @@
     "postcss": "^8.5.6"
   }
 }
->>>>>>> bf31496 (Initial commit)
