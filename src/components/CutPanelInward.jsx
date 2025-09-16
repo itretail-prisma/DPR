@@ -1618,6 +1618,8 @@ function CutPanelInwardPage({ handleLogout }) {
                       <th style={{ textAlign: "center" }} rowSpan={2}>LP</th>
                       <th style={{ textAlign: "center" }} rowSpan={2}>RP</th>
                       <th style={{ textAlign: "center", width: "60px" }} rowSpan={2}>Edit</th>
+                      <th style={{ textAlign: "center", width: "60px" }} rowSpan={2}>AL</th>
+                      <th style={{ textAlign: "center", width: "60px" }} rowSpan={2}>AO</th>
                     </tr>
                     <tr>
                       {/* Size labels row 2 */}
