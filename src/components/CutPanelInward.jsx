@@ -14,6 +14,10 @@ import Loader from "./Loader"; // adjust path if needed
 import { useUser } from "../contexts/UserContext";
 import { FiPower } from "react-icons/fi"; // Feather Icons
 import { FiRefreshCw } from "react-icons/fi";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLock, faLockOpen } from "@fortawesome/free-solid-svg-icons";
+import Tippy from "@tippyjs/react";
+import "tippy.js/dist/tippy.css";
 
 let sizes = ["2XS", "XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "TOTAL"];
 let displaySizes = sizes;
@@ -69,6 +73,14 @@ function CutPanelInwardPage({ handleLogout }) {
   const [printedData, setPrintedData] = useState([]); // Track printed items
   const [filteredSize, setFilteredSize] = useState(null);
   const { userInfo } = useUser();
+  const [rowLocks, setRowLocks] = useState({}); // { rowIndex: true/false }
+
+  const toggleRowLock = (index) => {
+    setRowLocks((prev) => ({
+      ...prev,
+      [index]: !prev[index], // toggle lock
+    }));
+  };
 
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1; // 0-based index, so +1
@@ -1569,7 +1581,7 @@ function CutPanelInwardPage({ handleLogout }) {
             Array.isArray(entryData.data) && (
               <div style={{
                 maxHeight: "440px",  // Set max height for the container
-                maxWidth: "1100px",
+                maxWidth: "1250px",
                 overflowY: "auto",  // Enable vertical scrolling if content exceeds
                 position: "absolute",
               }}>
@@ -1758,6 +1770,66 @@ function CutPanelInwardPage({ handleLogout }) {
                                 Edit
                               </button>
                             </td>
+                            <td style={{ textAlign: "center" }}>
+                              <Tippy
+                                content={
+                                  userInfo?.isAdmin
+                                    ? rowLocks[index]
+                                      ? "Unlock"
+                                      : "Lock"
+                                    : "Only admins can lock/unlock"
+                                }
+                                placement="left"
+                              >
+                                <span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (!userInfo?.isAdmin) return; // block non-admins
+                                      toggleRowLock(index);
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      cursor: userInfo?.isAdmin ? "pointer" : "not-allowed",
+                                      opacity: userInfo?.isAdmin ? 1 : 0.5,
+                                    }}
+                                    disabled={!userInfo?.isAdmin} // prevent click
+                                  >
+                                    {rowLocks[index] ? (
+                                      <FontAwesomeIcon icon={faLock} size="lg" color="#333" />
+                                    ) : (
+                                      <FontAwesomeIcon icon={faLockOpen} size="lg" color="#333" />
+                                    )}
+                                  </button>
+                                </span>
+                              </Tippy>
+                            </td>
+
+                            <td>
+                              <button
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "14px",
+                                  backgroundColor: "#0a66c2",
+                                  color: "white",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  cursor: userInfo?.isAdmin ? "pointer" : "not-allowed",
+                                  opacity: userInfo?.isAdmin ? 1 : 0.5,
+                                }}
+                                onClick={(e) => {
+                                  if (!userInfo?.isAdmin) return; // ❌ block if not admin
+                                  e.stopPropagation();
+                                  // handleEditRow(item, index);
+                                }}
+                                disabled={!userInfo?.isAdmin}
+                              >
+                                AO
+                              </button>
+                            </td>
+
+
                             {/* <td><FaPrint
                             onClick={(e) => {
                               e.stopPropagation(); // ✅ Prevents triggering row click
@@ -3344,7 +3416,6 @@ function DPRForm({
           console.log("Updated entryData:", updatedData); // ✅ log here
           return { ...prev, data: updatedData };
         });
-
         // ✅ Trigger updatedSizeData to enforce readonly
         // updatedSizeData();
       } else {
@@ -3942,9 +4013,9 @@ function DPRForm({
 
                             // ✅ Final read-only logic
                             const isReadOnlyField =
-                              field === "WIP" || 
-                              field === "Bal Pcs" ||
-                              field === "LP" ||
+                              field === "WIP" ||
+                                field === "Bal Pcs" ||
+                                field === "LP" ||
                                 field === "EP"
                                 ? true
                                 : field === "FRP" || "SWRP" ? !form.sizeData[size]?.__Editable : form.sizeData[size]?.__readOnly; //: field === "EP" || "FRP" ? !form.sizeData[size]?.__Editable // Refer UpdateIWPCS initially _epeditable false
