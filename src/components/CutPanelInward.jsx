@@ -75,11 +75,55 @@ function CutPanelInwardPage({ handleLogout }) {
   const { userInfo } = useUser();
   const [rowLocks, setRowLocks] = useState({}); // { rowIndex: true/false }
 
-  const toggleRowLock = (index) => {
+  const toggleRowLock = async (index, row) => {
+    const newLockState = !rowLocks[index]; // flip lock state
+
+    // Optimistically update UI + row object
     setRowLocks((prev) => ({
       ...prev,
-      [index]: !prev[index], // toggle lock
+      [index]: newLockState,
     }));
+
+    // 🔹 Update the row itself so item.isCpiClosed changes
+    row.isCpiClosed = newLockState ? "1" : "0";
+
+    try {
+      const action = newLockState ? "lock" : "unlock";
+
+      const res = await fetch("http://192.168.1.195:80/name/api/cpiLockUnlock.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          EntryMasId: row.EntryMasId,
+          isAdmin: userInfo?.isAdmin,
+          action,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        // 🔹 revert UI + row if server rejects
+        setRowLocks((prev) => ({
+          ...prev,
+          [index]: !newLockState,
+        }));
+        row.isCpiClosed = !newLockState ? "1" : "0"; // revert
+        alert(data.message || "Failed to update lock status.");
+      } else {
+        console.log(`Row ${index} ${action}ed successfully`, row);
+      }
+    } catch (err) {
+      console.error("Error:", err);
+
+      // 🔹 revert UI + row if network error
+      setRowLocks((prev) => ({
+        ...prev,
+        [index]: !newLockState,
+      }));
+      row.isCpiClosed = !newLockState ? "1" : "0"; // revert
+      alert("Network error while updating lock status.");
+    }
   };
 
   const currentDate = new Date();
@@ -246,8 +290,8 @@ function CutPanelInwardPage({ handleLogout }) {
     // const fetchAll = async () => {
     //   try {
     //     const [entryMas, otherData] = await Promise.all([
-    //       fetch("http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php").then(r => r.json())
-    //       // ,fetch("http://192.168.1.123:8080/name/api/getSomethingElse.php").then(r => r.json())
+    //       fetch("http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php").then(r => r.json())
+    //       // ,fetch("http://192.168.1.195:80/name/api/getSomethingElse.php").then(r => r.json())
     //     ]);
 
     //     console.log("✅ All data loaded:", entryMas, otherData);
@@ -271,7 +315,7 @@ function CutPanelInwardPage({ handleLogout }) {
     const fetchCpiOptions = async () => {
       try {
         const res = await axios.post(
-          "http://192.168.1.123:8080/name/api/IMS/get_all_cpino.php",
+          "http://192.168.1.195:80/name/api/IMS/get_all_cpino.php",
           { financialYear: selectedYear } // send FY value in body
         );
 
@@ -299,7 +343,7 @@ function CutPanelInwardPage({ handleLogout }) {
         }
         // 🔹 Second API: get_all_entryMas.php
         const entryMasRes = await axios.post(
-          "http://192.168.1.123:8080/name/api/get_all_entryMasT.php",
+          "http://192.168.1.195:80/name/api/get_all_entryMasT.php",
           {
             financialYear: selectedYear, locationID: userInfo?.LocationID
           }  //, FGPS: userInfo?.LocationID === "001" ? "VL-T-" : userInfo?.LocationID === "002" ? "VL-N-" : undefined
@@ -387,7 +431,7 @@ function CutPanelInwardPage({ handleLogout }) {
         if (cleanedValue.length > 0) {
           try {
             const fetchResponse = await fetch(
-              "http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php",
+              "http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php",
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -452,7 +496,7 @@ function CutPanelInwardPage({ handleLogout }) {
     if (loading) return; // prevent multiple clicks
     setLoading(true);
 
-    fetch("http://192.168.1.123:8080/name/api/IMS/sync_cpi_data.php", {
+    fetch("http://192.168.1.195:80/name/api/IMS/sync_cpi_data.php", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -474,18 +518,18 @@ function CutPanelInwardPage({ handleLogout }) {
       setLoading(true);
       // Fetch first API: CPI details
       const res1 = await axios.post(
-        "http://192.168.1.123:8080/name/api/IMS/get_cpino_details.php",
+        "http://192.168.1.195:80/name/api/IMS/get_cpino_details.php",
         { cpiNo, financialYear: selectedYear }
       );
 
       // Fetch second API: Sewing Line Item 
       const res2 = await axios.post(
-        "http://192.168.1.123:8080/name/api/IMS/getSewingLineItem.php",
+        "http://192.168.1.195:80/name/api/IMS/getSewingLineItem.php",
         { cpiNo, financialYear: selectedYear }
       );
       // Step 3: Fetch FGPSType mapping
       const res3 = await axios.post(
-        "http://192.168.1.123:8080/name/api/IMS/fgpsType.php",
+        "http://192.168.1.195:80/name/api/IMS/fgpsType.php",
         { financialYear: selectedYear }
       );
 
@@ -658,15 +702,15 @@ function CutPanelInwardPage({ handleLogout }) {
   //     // Fetch all three APIs
   //     const [res1, res2, res3] = await Promise.all([
   //       axios.post(
-  //         "http://192.168.1.123:8080/name/api/IMS/get_cpino_details.php",
+  //         "http://192.168.1.195:80/name/api/IMS/get_cpino_details.php",
   //         { cpiNo, financialYear: selectedYear }
   //       ),
   //       axios.post(
-  //         "http://192.168.1.123:8080/name/api/IMS/getSewingLineItem.php",
+  //         "http://192.168.1.195:80/name/api/IMS/getSewingLineItem.php",
   //         { cpiNo, financialYear: selectedYear }
   //       ),
   //       axios.post(
-  //         "http://192.168.1.123:8080/name/api/IMS/fgpsType.php",
+  //         "http://192.168.1.195:80/name/api/IMS/fgpsType.php",
   //         { financialYear: selectedYear }
   //       ),
   //     ]);
@@ -841,8 +885,9 @@ function CutPanelInwardPage({ handleLogout }) {
     console.log("handleEditRow → full item:", item); // 🔹 Log the entire object
 
     if (!item.sizes || !Array.isArray(item.sizes)) return;
-
-    const editableSizeMap = generateSizeMap(item, true); // editable
+    // 🔑 Pass `false` if locked (isCpiClosed = "1"), else `true`
+    const sizeEditable = item.isCpiClosed !== "1";
+    const editableSizeMap = generateSizeMap(item, sizeEditable); // editable
     console.log("handleEditRow → editableSizeMap:", editableSizeMap);
     setSelectedSizeData(editableSizeMap);
   };
@@ -908,7 +953,7 @@ function CutPanelInwardPage({ handleLogout }) {
   // storeSizeBarcode function to call the API (example)
   const storeSizeBarcode = async (data) => {
     try {
-      const response = await fetch("http://192.168.1.123:8080/name/api/storeSizeBarcode.php", {
+      const response = await fetch("http://192.168.1.195:80/name/api/storeSizeBarcode.php", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1108,7 +1153,7 @@ function CutPanelInwardPage({ handleLogout }) {
                   if (e.key === "Enter") {
                     try {
                       const res = await axios.post(
-                        "http://192.168.1.123:8080/name/api/IMS/get_all_cpino.php",
+                        "http://192.168.1.195:80/name/api/IMS/get_all_cpino.php",
                         { financialYear: selectedYear } // send FY value in body
                       );
 
@@ -1133,7 +1178,7 @@ function CutPanelInwardPage({ handleLogout }) {
                         // setCpiOptions(options);
                       }
                       const entryMasRes = await axios.post(
-                        "http://192.168.1.123:8080/name/api/get_all_entryMasT.php",
+                        "http://192.168.1.195:80/name/api/get_all_entryMasT.php",
                         {
                           financialYear: selectedYear, locationID: userInfo?.LocationID
                         }  //, FGPS: `${cutPanelForm.fgpsStyle}-`
@@ -1774,7 +1819,7 @@ function CutPanelInwardPage({ handleLogout }) {
                               <Tippy
                                 content={
                                   userInfo?.isAdmin
-                                    ? rowLocks[index]
+                                    ? (rowLocks[index] ?? item.isCpiClosed === "1")
                                       ? "Unlock"
                                       : "Lock"
                                     : "Only admins can lock/unlock"
@@ -1785,8 +1830,8 @@ function CutPanelInwardPage({ handleLogout }) {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (!userInfo?.isAdmin) return; // block non-admins
-                                      toggleRowLock(index);
+                                      if (!userInfo?.isAdmin) return;
+                                      toggleRowLock(index, item); // pass both index + item
                                     }}
                                     style={{
                                       background: "none",
@@ -1794,9 +1839,9 @@ function CutPanelInwardPage({ handleLogout }) {
                                       cursor: userInfo?.isAdmin ? "pointer" : "not-allowed",
                                       opacity: userInfo?.isAdmin ? 1 : 0.5,
                                     }}
-                                    disabled={!userInfo?.isAdmin} // prevent click
+                                    disabled={!userInfo?.isAdmin}
                                   >
-                                    {rowLocks[index] ? (
+                                    {(rowLocks[index] ?? item.isCpiClosed === "1") ? (
                                       <FontAwesomeIcon icon={faLock} size="lg" color="#333" />
                                     ) : (
                                       <FontAwesomeIcon icon={faLockOpen} size="lg" color="#333" />
@@ -1805,6 +1850,7 @@ function CutPanelInwardPage({ handleLogout }) {
                                 </span>
                               </Tippy>
                             </td>
+
 
                             <td>
                               <button
@@ -2308,7 +2354,7 @@ function DPRForm({
   }) => {
     try {
       const response = await fetch(
-        "http://192.168.1.123:8080/name/api/updateSewingLine.php",
+        "http://192.168.1.195:80/name/api/updateSewingLine.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2846,7 +2892,7 @@ function DPRForm({
   const fetchSewingLineItems = async (cpiNo, selectedYear) => {
     try {
       const res = await axios.post(
-        "http://192.168.1.123:8080/name/api/IMS/getSewingLineItem.php",
+        "http://192.168.1.195:80/name/api/IMS/getSewingLineItem.php",
         { cpiNo, financialYear: selectedYear }
       );
 
@@ -2930,8 +2976,8 @@ function DPRForm({
         const isUpdate = editable;
         console.log("isUpdate", isUpdate);
         const url = isUpdate
-          ? "http://192.168.1.123:8080/name/api/updateDprEntryAndSize.php"
-          : "http://192.168.1.123:8080/name/api/saveEntry.php";
+          ? "http://192.168.1.195:80/name/api/updateDprEntryAndSize.php"
+          : "http://192.168.1.195:80/name/api/saveEntry.php";
 
         console.log(
           isUpdate ? "🔁 Updating existing entry" : "🆕 Submitting new entry"
@@ -3017,7 +3063,7 @@ function DPRForm({
           //   try {
           //   // fetchSewingLineItems(cpiNo, selectedYear); // ✅ only this part
           //   const fetchResponse = await fetch(
-          //     "http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php",
+          //     "http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php",
           //     {
           //       method: "POST",
           //       headers: {
@@ -3034,7 +3080,7 @@ function DPRForm({
           // }
           try {
             const [entryRes] = await Promise.all([
-              fetch("http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php", {
+              fetch("http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ cpiNo, financialYear: selectedYear }),
@@ -3110,7 +3156,7 @@ function DPRForm({
   // const handleExcelExport = async () => {
   //   try {
   //     const response = await fetch(
-  //       "http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php",
+  //       "http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php",
   //       {
   //         method: "POST",
   //         headers: { "Content-Type": "application/json" },
@@ -3381,7 +3427,7 @@ function DPRForm({
 
     try {
       const response = await fetch(
-        "http://192.168.1.123:8080/name/api/updateCPIclose.php",
+        "http://192.168.1.195:80/name/api/updateCPIclose.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -3673,7 +3719,7 @@ function DPRForm({
             </div>
           )}
 
-          <div>
+          {/* <div>
             <label style={{ fontSize: "14px", fontWeight: "bold" }}>
               FGPS Style
             </label>
@@ -3705,7 +3751,46 @@ function DPRForm({
                 </option>
               ))}
             </select>
+          </div> */}
+          <div>
+            <label style={{ fontSize: "14px", fontWeight: "bold" }}>
+              FGPS Style
+            </label>
+            <select
+              ref={fgpsStyleRef}
+              name="fgpsStyle"
+              value={form.fgpsStyle}
+              // 🔹 disable if this specific record is locked
+              disabled={selectedItemForForm?.isCpiClosed === "1" || isCpiClosed
+              }
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, fgpsStyle: e.target.value }))
+              }
+              className="select-fgps"
+              style={{
+                width: "67px",
+                marginLeft: "4px",
+                backgroundColor:
+                  selectedItemForForm?.isCpiClosed === "1" || isCpiClosed
+                    ? "#d3d3d3ff"
+                    : "rgb(140, 233, 86)",
+                marginRight: "10px",
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  fgpsRef.current?.focus(); // Next input
+                }
+              }}
+            >
+              {fgpsStyleOptions.map((style) => (
+                <option key={style} value={style}>
+                  {style}
+                </option>
+              ))}
+            </select>
           </div>
+
 
           {/* FGPS No */}
           <div style={{ display: "flex", alignItems: "center" }}>
@@ -3719,12 +3804,12 @@ function DPRForm({
               value={form.fgpsNumber}
               onChange={handleNumberOnlyInput}
               maxLength={5}
-              disabled={isCpiClosed}
+              disabled={selectedItemForForm?.isCpiClosed === "1" ||isCpiClosed}
               required={!anySizeWIP}
               style={{
                 width: "50px",
                 marginLeft: "4px",
-                backgroundColor: isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
+                backgroundColor: selectedItemForForm?.isCpiClosed === "1" || isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
                 marginRight: "12px",
               }}
               onKeyDown={(e) => {
@@ -3757,7 +3842,7 @@ function DPRForm({
               name="fgpsDate"
               value={form.fgpsDate}
               onChange={handleInputChange}
-              disabled={isCpiClosed}
+              disabled={selectedItemForForm?.isCpiClosed === "1" || isCpiClosed}
               className="fgps-date highlight-focus"
               required={!anySizeWIP}
               style={{
@@ -3765,7 +3850,7 @@ function DPRForm({
                 padding: "4px",
                 fontSize: "13px",
                 marginRight: "12px",
-                backgroundColor: isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
+                backgroundColor: selectedItemForForm?.isCpiClosed === "1" || isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
 
               }}
               onKeyDown={(e) => {
@@ -3800,7 +3885,7 @@ function DPRForm({
               className="st-date"
               value={form.stitchingDate}
               onChange={handleInputChange}
-              disabled={isCpiClosed}
+              disabled={selectedItemForForm?.isCpiClosed === "1" || isCpiClosed}
               required={!anySizeWIP}
 
               onKeyDown={(e) => {
@@ -3820,7 +3905,7 @@ function DPRForm({
               style={{
                 width: "105px",
                 marginLeft: "5px",
-                backgroundColor: isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
+                backgroundColor: selectedItemForForm?.isCpiClosed === "1" || isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
               }}
             />
           </div>
@@ -3837,12 +3922,12 @@ function DPRForm({
               className="fgps-date"
               value={form.inscanDate}
               onChange={handleInputChange}
-              disabled={isCpiClosed}
+              disabled={selectedItemForForm?.isCpiClosed === "1" || isCpiClosed}
               required={!anySizeWIP}
               style={{
                 width: "105px",
                 marginLeft: "4px",
-                backgroundColor: isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
+                backgroundColor: selectedItemForForm?.isCpiClosed === "1" || isCpiClosed ? "#d3d3d3ff" : "rgb(140, 233, 86)",
                 marginRight: "13px",
               }}
               onKeyDown={(e) => {
@@ -4570,7 +4655,7 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
   //   if (filters.cpiTo) params.append("cpiTo", filters.cpiTo);
   //   if (filters.itemName) params.append("itemName", filters.itemName);
 
-  //   window.open(`http://192.168.1.123:8080/name/api/reportExcel.php?${params.toString()}`, "_blank");
+  //   window.open(`http://192.168.1.195:80/name/api/reportExcel.php?${params.toString()}`, "_blank");
 
   //   // window.open(url, "_blank");
   // };
@@ -4602,7 +4687,7 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
       if (filters.stitchingDateFrom) payload.stitchingDateFrom = filters.stitchingDateFrom;
       if (filters.stitchingDateTo) payload.stitchingDateTo = filters.stitchingDateTo;
       if (filters.itemName) payload.itemName = filters.itemName;
-      const countResp = await fetch("http://192.168.1.123:8080/name/api/reportExportCounts.php", {
+      const countResp = await fetch("http://192.168.1.195:80/name/api/reportExportCounts.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -4679,14 +4764,14 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
         // }, 200);
 
         // ⏳ Kick off export
-        const response = await fetch("http://192.168.1.123:8080/name/api/reportExport.php", {
+        const response = await fetch("http://192.168.1.195:80/name/api/reportExport.php", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
         // 🔄 In parallel, listen for live progress (optional)
-        // const eventSource = new EventSource("http://192.168.1.123:8080/name/api/reportExport.php");
+        // const eventSource = new EventSource("http://192.168.1.195:80/name/api/reportExport.php");
         // eventSource.onmessage = (event) => {
         //   const msg = JSON.parse(event.data);
 
@@ -4703,7 +4788,7 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
 
         // 2️⃣ Convert payload → query string for SSE
         // const query = new URLSearchParams(payload).toString();
-        // const sseUrl = `http://192.168.1.123:8080/name/api/reportExport.php?${query}`;
+        // const sseUrl = `http://192.168.1.195:80/name/api/reportExport.php?${query}`;
 
         // // 3️⃣ Open SSE connection with filters applied
         // const eventSource = new EventSource(sseUrl);
