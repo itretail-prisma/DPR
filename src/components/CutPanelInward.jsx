@@ -74,6 +74,44 @@ function CutPanelInwardPage({ handleLogout }) {
   const [filteredSize, setFilteredSize] = useState(null);
   const { userInfo } = useUser();
   const [rowLocks, setRowLocks] = useState({}); // { rowIndex: true/false }
+  const [showAuditModal, setShowAuditModal] = useState(null); // stores EntryMasId of row being edited
+  const [auditObs, setAuditObs] = useState({}); // { EntryMasId: observation }
+  const [auditMeta, setAuditMeta] = useState({});
+  // Function to save audit observation
+  const handleSaveAudit = async (entryMasId, observation) => {
+    try {
+      const res = await fetch("http://192.168.1.195:80/name/api/saveAuditObservation.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          EntryMasId: entryMasId,
+          auditObservation: observation,
+          isAdmin: userInfo?.isAdmin,
+          auditBy: userInfo?.FName,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // update local state
+        setAuditObs((prev) => ({ ...prev, [entryMasId]: observation }));
+        setAuditMeta((prev) => ({
+          ...prev,
+          [entryMasId]: {
+            auditBy: userInfo?.FName ?? "System",
+            auditAt: new Date().toISOString(), // client timestamp (approx)
+          },
+        }));
+        alert("Observation saved successfully!");
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error("Error saving observation:", err);
+      alert("Failed to save observation.");
+    }
+  };
 
   const toggleRowLock = async (index, row) => {
     const newLockState = !rowLocks[index]; // flip lock state
@@ -125,6 +163,7 @@ function CutPanelInwardPage({ handleLogout }) {
       alert("Network error while updating lock status.");
     }
   };
+
 
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1; // 0-based index, so +1
@@ -1851,30 +1890,92 @@ function CutPanelInwardPage({ handleLogout }) {
                               </Tippy>
                             </td>
 
+                            <td style={{ textAlign: "center", position: "relative" }}>
+                              {/* Tooltip + Button */}
+                              <Tippy content={
+                                auditObs[item.EntryMasId] ??
+                                item.AuditObservation ??
+                                "No observation"
+                              } placement="left">
+                                <button
+                                  style={{
+                                    padding: "4px 8px",
+                                    fontSize: "14px",
+                                    backgroundColor:
+                                      auditObs[item.EntryMasId] || item.AuditObservation
+                                        ? "red"
+                                        : "#0a66c2",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: userInfo?.isAdmin ? "pointer" : "not-allowed",
+                                    opacity: userInfo?.isAdmin ? 1 : 0.5,
+                                  }}
+                                  onClick={() => {
+                                    if (!userInfo?.isAdmin) return;
+                                    setShowAuditModal(item.EntryMasId); // open modal for this row
+                                  }}
+                                  disabled={!userInfo?.isAdmin}
+                                >
+                                  AO
+                                </button>
+                              </Tippy>
 
-                            <td>
-                              <button
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "14px",
-                                  backgroundColor: "#0a66c2",
-                                  color: "white",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  cursor: userInfo?.isAdmin ? "pointer" : "not-allowed",
-                                  opacity: userInfo?.isAdmin ? 1 : 0.5,
-                                }}
-                                onClick={(e) => {
-                                  if (!userInfo?.isAdmin) return; // ❌ block if not admin
-                                  e.stopPropagation();
-                                  // handleEditRow(item, index);
-                                }}
-                                disabled={!userInfo?.isAdmin}
-                              >
-                                AO
-                              </button>
+                              {/*Audit Observation Modal */}
+                              {showAuditModal === item.EntryMasId && (
+                                <div className="audit-modal-overlay">
+                                  <div className="audit-modal">
+                                    <h3 className="audit-modal-title">Audit Observation</h3>
+
+                                    <textarea
+                                      value={auditObs[item.EntryMasId] ?? item.AuditObservation ?? ""}
+                                      onChange={(e) =>
+                                        setAuditObs((prev) => ({
+                                          ...prev,
+                                          [item.EntryMasId]: e.target.value,
+                                        }))
+                                      }
+                                      rows={4}
+                                      className="audit-modal-textarea"
+                                    />
+
+                                    <div className="audit-modal-footer">
+                                      {/* Show Audit info */}
+                                      <div className="audit-meta">
+                                        <strong>Audit By:</strong>{" "}
+                                        {auditMeta[item.EntryMasId]?.auditBy ?? item.AuditBy ?? "—"}
+                                        <br />
+                                        <strong>Audit At:</strong>{" "}
+                                        {auditMeta[item.EntryMasId]?.auditAt
+                                          ? new Date(auditMeta[item.EntryMasId].auditAt).toLocaleString()
+                                          : item.AuditAt
+                                            ? new Date(item.AuditAt).toLocaleString()
+                                            : "—"}
+                                      </div>
+
+                                      {/* Buttons */}
+                                      <div className="audit-buttons">
+                                        <button className="audit-btn cancel" onClick={() => setShowAuditModal(null)}>
+                                          Cancel
+                                        </button>
+                                        <button
+                                          className="audit-btn save"
+                                          onClick={() => {
+                                            handleSaveAudit(
+                                              item.EntryMasId,
+                                              auditObs[item.EntryMasId] ?? item.AuditObservation ?? ""
+                                            );
+                                            setShowAuditModal(null);
+                                          }}
+                                        >
+                                          Save
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
                             </td>
-
 
                             {/* <td><FaPrint
                             onClick={(e) => {
@@ -3804,7 +3905,7 @@ function DPRForm({
               value={form.fgpsNumber}
               onChange={handleNumberOnlyInput}
               maxLength={5}
-              disabled={selectedItemForForm?.isCpiClosed === "1" ||isCpiClosed}
+              disabled={selectedItemForForm?.isCpiClosed === "1" || isCpiClosed}
               required={!anySizeWIP}
               style={{
                 width: "50px",
@@ -4849,14 +4950,14 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
         const fieldsToShow = isOnlyWIP ? ["WIP"] : isOnlyLP ? ["LP"] : sizeFields;
 
         // 🟢 Step 2: Create workbook and worksheet
-        let sheetName = "DPR_Detail";
+        let sheetName = "CPI IW Vs Gmt OW_Detail";
 
         if (isOnlyWIP) {
           sheetName = "WIP_Summary";
         } else if (isOnlyLP) {
           sheetName = "LP_Summary";
         } else if (isWIP) {
-          sheetName = "DPR_Abstract";
+          sheetName = "CPI IW Vs Gmt OW_Abstract";
         }
 
         const workbook = new ExcelJS.Workbook();
@@ -5660,11 +5761,12 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                   });
                 });
                 // Determine font color based on isCpiClosed
-                const fontColor = isDetail
-                  ? isCpiClosed
-                    ? "FF0000FF" // Blue if CPI closed
-                    : "FF000000" // FFD36BA4 // Maroon / custom
-                  : "FF000000"; // Default black for normal rows
+                const fontColor =
+                  // isDetail
+                  //   ? isCpiClosed
+                  //     ? "FF0000FF" // Blue if CPI closed
+                  //     : "FF000000" // FFD36BA4 // Maroon / custom : 
+                  "FF000000"; // Default black for normal rows
 
                 const newRow = worksheet.addRow([...base, ...sizeData]);
                 newRow.height = 15;
@@ -5849,14 +5951,14 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
         const min = String(now.getMinutes()).padStart(2, "0");
 
         // const fileName = `${isWIP ? "WIP_Detail" : "DPR_Detail"}_${dd}${mm}${yy}_${hh}${min}.xlsx`;
-        let reportLabel = "DPR_Detail";
+        let reportLabel = "CPI IW Vs Gmt OW_Detail";
 
         if (isOnlyWIP) {
           reportLabel = "WIP_Summary";
         } else if (isOnlyLP) {
           reportLabel = "LP_Summary";
         } else if (isWIP) {
-          reportLabel = "DPR_Abstract";
+          reportLabel = "CPI IW Vs Gmt OW_Abstract";
         }
 
         const fileName = `${reportLabel}_${dd}${mm}${yy}_${hh}${min}.xlsx`;
@@ -6023,8 +6125,12 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                 dprToRef.current?.focus(); // Move to Inscan Date
               }
             }}
-            className={`filter-input`} // 👈 inline style to reduce width
-            style={{ width: "70px" }} // 👈 inline style to reduce width
+            className={
+              filters.reportType === "Detail" || filters.reportType === "WIP"
+                ? "readonly-input"
+                : "filter-input"
+            } style={{ width: "70px" }} // 👈 inline style to reduce width
+            disabled={filters.reportType === "Detail" || filters.reportType === "WIP"} // 👈 disable condition
           />
           <input
             ref={dprToRef}
@@ -6039,8 +6145,12 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                 applyButtonRef.current?.focus(); // Move to Inscan Date
               }
             }}
-            className={`filter-input`}
-            style={{ width: "70px" }} // 👈 inline style to reduce width
+            className={
+              filters.reportType === "Detail" || filters.reportType === "WIP"
+                ? "readonly-input"
+                : "filter-input"
+            } style={{ width: "70px" }} // 👈 inline style to reduce width
+            disabled={filters.reportType === "Detail" || filters.reportType === "WIP"} // 👈 disable condition
           />
           {/* </div> */}
           {/* </div> */}
@@ -6063,7 +6173,13 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                 dprDateToRef.current?.focus(); // Move to Inscan Date
               }
             }}
-            className={"filter-input"} />
+            className={
+              filters.reportType === "Detail" || filters.reportType === "WIP"
+                ? "readonly-input"
+                : "filter-input"
+            }
+            disabled={filters.reportType === "Detail" || filters.reportType === "WIP"} // 👈 disable condition
+          />
           <input
             ref={dprDateToRef}
             type="date"
@@ -6075,7 +6191,13 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                 applyButtonRef.current?.focus(); // Move to Inscan Date
               }
             }}
-            className={"filter-input"} />          {/* </div> */}
+            className={
+              filters.reportType === "Detail" || filters.reportType === "WIP"
+                ? "readonly-input"
+                : "filter-input"
+            }
+            disabled={filters.reportType === "Detail" || filters.reportType === "WIP"} // 👈 disable condition
+          />          {/* </div> */}
         </div>
         {/* FGPS Date Section */}
         <div className="filter-section">
@@ -6093,7 +6215,14 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                 fgpsDateToRef.current?.focus(); // Move to Inscan Date
               }
             }}
-            className={"filter-input"} />          <input
+            className={
+              filters.reportType === "Detail" || filters.reportType === "WIP"
+                ? "readonly-input"
+                : "filter-input"
+            }
+            disabled={filters.reportType === "Detail" || filters.reportType === "WIP"} // 👈 disable condition
+          />
+          <input
             ref={fgpsDateToRef}
             type="date"
             value={filters.fgpsDateTo}
@@ -6104,7 +6233,13 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                 applyButtonRef.current?.focus(); // Move to Inscan Date
               }
             }}
-            className={"filter-input"} />          {/* </div> */}
+            className={
+              filters.reportType === "Detail" || filters.reportType === "WIP"
+                ? "readonly-input"
+                : "filter-input"
+            }
+            disabled={filters.reportType === "Detail" || filters.reportType === "WIP"} // 👈 disable condition
+          />          {/* </div> */}
         </div>
 
         {/* FGPS No Section */}
@@ -6270,7 +6405,10 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                   onChange={(e) => handleInputChange("reportType", e.target.value)}
                   className="radio-input"
                 />
-                <span>DPR Detail</span>
+                <Tippy content="To See Daily Production Report details With Entries">
+                  {/* <span>DPR Detail</span> */}
+                  <span>CPI IW Vs Gmt OW_Detail</span>
+                </Tippy>
               </label>
               <label className="radio-label">
                 <input
@@ -6281,7 +6419,11 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                   onChange={(e) => handleInputChange("reportType", e.target.value)}
                   className="radio-input"
                 />
-                <span>DPR Abstract</span>
+                {/* <span>DPR Abstract</span> */}
+                <Tippy content="To See Daily Production Report details With Entries" >
+                  <span>CPI IW Vs Gmt OW_Abstract
+                  </span>
+                </Tippy>
                 {/* <i style={{ fontSize: "15px", color: "#285ae6" }} >(DPR Summary)</i> */}
               </label>
               {/* </div> */}
