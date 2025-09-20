@@ -80,7 +80,7 @@ function CutPanelInwardPage({ handleLogout }) {
   // Function to save audit observation
   const handleSaveAudit = async (entryMasId, observation) => {
     try {
-      const res = await fetch("http://192.168.1.195:80/name/api/saveAuditObservation.php", {
+      const res = await fetch("http://192.168.1.123:8080/name/api/saveAuditObservation.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -128,7 +128,7 @@ function CutPanelInwardPage({ handleLogout }) {
     try {
       const action = newLockState ? "lock" : "unlock";
 
-      const res = await fetch("http://192.168.1.195:80/name/api/cpiLockUnlock.php", {
+      const res = await fetch("http://192.168.1.123:8080/name/api/cpiLockUnlock.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -329,8 +329,8 @@ function CutPanelInwardPage({ handleLogout }) {
     // const fetchAll = async () => {
     //   try {
     //     const [entryMas, otherData] = await Promise.all([
-    //       fetch("http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php").then(r => r.json())
-    //       // ,fetch("http://192.168.1.195:80/name/api/getSomethingElse.php").then(r => r.json())
+    //       fetch("http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php").then(r => r.json())
+    //       // ,fetch("http://192.168.1.123:8080/name/api/getSomethingElse.php").then(r => r.json())
     //     ]);
 
     //     console.log("✅ All data loaded:", entryMas, otherData);
@@ -354,7 +354,7 @@ function CutPanelInwardPage({ handleLogout }) {
     const fetchCpiOptions = async () => {
       try {
         const res = await axios.post(
-          "http://192.168.1.195:80/name/api/IMS/get_all_cpino.php",
+          "http://192.168.1.123:8080/name/api/IMS/get_all_cpino.php",
           { financialYear: selectedYear } // send FY value in body
         );
 
@@ -382,7 +382,7 @@ function CutPanelInwardPage({ handleLogout }) {
         }
         // 🔹 Second API: get_all_entryMas.php
         const entryMasRes = await axios.post(
-          "http://192.168.1.195:80/name/api/get_all_entryMasT.php",
+          "http://192.168.1.123:8080/name/api/get_all_entryMasT.php",
           {
             financialYear: selectedYear, locationID: userInfo?.LocationID
           }  //, FGPS: userInfo?.LocationID === "001" ? "VL-T-" : userInfo?.LocationID === "002" ? "VL-N-" : undefined
@@ -470,7 +470,7 @@ function CutPanelInwardPage({ handleLogout }) {
         if (cleanedValue.length > 0) {
           try {
             const fetchResponse = await fetch(
-              "http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php",
+              "http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php",
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -535,7 +535,7 @@ function CutPanelInwardPage({ handleLogout }) {
     if (loading) return; // prevent multiple clicks
     setLoading(true);
 
-    fetch("http://192.168.1.195:80/name/api/IMS/sync_cpi_data.php", {
+    fetch("http://192.168.1.123:8080/name/api/IMS/sync_cpi_data.php", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -557,18 +557,18 @@ function CutPanelInwardPage({ handleLogout }) {
       setLoading(true);
       // Fetch first API: CPI details
       const res1 = await axios.post(
-        "http://192.168.1.195:80/name/api/IMS/get_cpino_details.php",
+        "http://192.168.1.123:8080/name/api/IMS/get_cpino_details.php",
         { cpiNo, financialYear: selectedYear }
       );
 
       // Fetch second API: Sewing Line Item 
       const res2 = await axios.post(
-        "http://192.168.1.195:80/name/api/IMS/getSewingLineItem.php",
+        "http://192.168.1.123:8080/name/api/IMS/getSewingLineItem.php",
         { cpiNo, financialYear: selectedYear }
       );
       // Step 3: Fetch FGPSType mapping
       const res3 = await axios.post(
-        "http://192.168.1.195:80/name/api/IMS/fgpsType.php",
+        "http://192.168.1.123:8080/name/api/IMS/fgpsType.php",
         { financialYear: selectedYear }
       );
 
@@ -741,15 +741,15 @@ function CutPanelInwardPage({ handleLogout }) {
   //     // Fetch all three APIs
   //     const [res1, res2, res3] = await Promise.all([
   //       axios.post(
-  //         "http://192.168.1.195:80/name/api/IMS/get_cpino_details.php",
+  //         "http://192.168.1.123:8080/name/api/IMS/get_cpino_details.php",
   //         { cpiNo, financialYear: selectedYear }
   //       ),
   //       axios.post(
-  //         "http://192.168.1.195:80/name/api/IMS/getSewingLineItem.php",
+  //         "http://192.168.1.123:8080/name/api/IMS/getSewingLineItem.php",
   //         { cpiNo, financialYear: selectedYear }
   //       ),
   //       axios.post(
-  //         "http://192.168.1.195:80/name/api/IMS/fgpsType.php",
+  //         "http://192.168.1.123:8080/name/api/IMS/fgpsType.php",
   //         { financialYear: selectedYear }
   //       ),
   //     ]);
@@ -906,7 +906,10 @@ function CutPanelInwardPage({ handleLogout }) {
   };
 
   const handleRowClick = (item, index) => {
-    setSelectedRowIndex(index);
+    // setSelectedRowIndex(index);
+    setSelectedRowIndex((prevIndex) =>
+      prevIndex === index ? null : index
+    );
     setSelectedItemForDPRForm(item);
     // console.log(index);
     setEditable(false); // ✅ readonly mode
@@ -918,7 +921,9 @@ function CutPanelInwardPage({ handleLogout }) {
     setSelectedSizeData(sizeMap);
   };
   const handleEditRow = (item, index) => {
-    setSelectedRowIndex(index);
+    setSelectedRowIndex((prevIndex) =>
+      prevIndex === index ? null : index
+    );
     setSelectedItemForDPRForm(item);
     setEditable(true); // ✅ editable mode
     console.log("handleEditRow → full item:", item); // 🔹 Log the entire object
@@ -992,7 +997,7 @@ function CutPanelInwardPage({ handleLogout }) {
   // storeSizeBarcode function to call the API (example)
   const storeSizeBarcode = async (data) => {
     try {
-      const response = await fetch("http://192.168.1.195:80/name/api/storeSizeBarcode.php", {
+      const response = await fetch("http://192.168.1.123:8080/name/api/storeSizeBarcode.php", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1192,7 +1197,7 @@ function CutPanelInwardPage({ handleLogout }) {
                   if (e.key === "Enter") {
                     try {
                       const res = await axios.post(
-                        "http://192.168.1.195:80/name/api/IMS/get_all_cpino.php",
+                        "http://192.168.1.123:8080/name/api/IMS/get_all_cpino.php",
                         { financialYear: selectedYear } // send FY value in body
                       );
 
@@ -1217,7 +1222,7 @@ function CutPanelInwardPage({ handleLogout }) {
                         // setCpiOptions(options);
                       }
                       const entryMasRes = await axios.post(
-                        "http://192.168.1.195:80/name/api/get_all_entryMasT.php",
+                        "http://192.168.1.123:8080/name/api/get_all_entryMasT.php",
                         {
                           financialYear: selectedYear, locationID: userInfo?.LocationID
                         }  //, FGPS: `${cutPanelForm.fgpsStyle}-`
@@ -1770,9 +1775,12 @@ function CutPanelInwardPage({ handleLogout }) {
                             style={{
                               backgroundColor:
                                 selectedEntryTableRowIndex === index
-                                  ? "#d0ebff"
+                                  ? "rgb(102, 96, 189)"
+                                  // ? "rgba(2, 70, 32, 1), 1)"
                                   : "transparent",
+                              color: selectedEntryTableRowIndex === index ? "white" : "black",
                               cursor: "pointer",
+
                             }}
                           >
                             <td>{item.SINo}</td>
@@ -1840,11 +1848,11 @@ function CutPanelInwardPage({ handleLogout }) {
                                 style={{
                                   padding: "4px 8px",
                                   fontSize: "14px",
-                                  backgroundColor: "#4CAF50",
+                                  backgroundColor: item.isCpiClosed === "1" ? "#ccc" : "#4CAF50", // gray if disabled
                                   color: "white",
                                   border: "none",
                                   borderRadius: "4px",
-                                  cursor: "pointer",
+                                  cursor: item.isCpiClosed === "1" ? "not-allowed" : "pointer",
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation(); // ✅ Prevents triggering row click
@@ -2455,7 +2463,7 @@ function DPRForm({
   }) => {
     try {
       const response = await fetch(
-        "http://192.168.1.195:80/name/api/updateSewingLine.php",
+        "http://192.168.1.123:8080/name/api/updateSewingLine.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -2557,6 +2565,7 @@ function DPRForm({
       setHighlightedSizes(sizesToHighlight);
     }
   }, [selectedSizeData]);
+
 
   // Log cutPanelForm whenever it changes
   // useEffect(() => {
@@ -2993,7 +3002,7 @@ function DPRForm({
   const fetchSewingLineItems = async (cpiNo, selectedYear) => {
     try {
       const res = await axios.post(
-        "http://192.168.1.195:80/name/api/IMS/getSewingLineItem.php",
+        "http://192.168.1.123:8080/name/api/IMS/getSewingLineItem.php",
         { cpiNo, financialYear: selectedYear }
       );
 
@@ -3077,8 +3086,8 @@ function DPRForm({
         const isUpdate = editable;
         console.log("isUpdate", isUpdate);
         const url = isUpdate
-          ? "http://192.168.1.195:80/name/api/updateDprEntryAndSize.php"
-          : "http://192.168.1.195:80/name/api/saveEntry.php";
+          ? "http://192.168.1.123:8080/name/api/updateDprEntryAndSize.php"
+          : "http://192.168.1.123:8080/name/api/saveEntry.php";
 
         console.log(
           isUpdate ? "🔁 Updating existing entry" : "🆕 Submitting new entry"
@@ -3164,7 +3173,7 @@ function DPRForm({
           //   try {
           //   // fetchSewingLineItems(cpiNo, selectedYear); // ✅ only this part
           //   const fetchResponse = await fetch(
-          //     "http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php",
+          //     "http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php",
           //     {
           //       method: "POST",
           //       headers: {
@@ -3181,7 +3190,7 @@ function DPRForm({
           // }
           try {
             const [entryRes] = await Promise.all([
-              fetch("http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php", {
+              fetch("http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ cpiNo, financialYear: selectedYear }),
@@ -3257,7 +3266,7 @@ function DPRForm({
   // const handleExcelExport = async () => {
   //   try {
   //     const response = await fetch(
-  //       "http://192.168.1.195:80/name/api/getEntryMasByCpiNo.php",
+  //       "http://192.168.1.123:8080/name/api/getEntryMasByCpiNo.php",
   //       {
   //         method: "POST",
   //         headers: { "Content-Type": "application/json" },
@@ -3528,7 +3537,7 @@ function DPRForm({
 
     try {
       const response = await fetch(
-        "http://192.168.1.195:80/name/api/updateCPIclose.php",
+        "http://192.168.1.123:8080/name/api/updateCPIclose.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -4414,9 +4423,23 @@ function DPRForm({
                                     padding: "2px",
                                     fontSize: "11px",
                                     textAlign: "center",
-                                    backgroundColor: isReadOnlyField
-                                      ? "#e0e0e0"
-                                      : "rgb(179, 219, 179)",
+                                    // backgroundColor: isReadOnlyField
+                                    //   ? "#e0e0e0"
+                                    //   : "rgb(179, 219, 179)",
+                                    backgroundColor:
+                                      isReadOnlyField &&
+                                        ["GP", "EP", "FRP", "SWRP", "MP"].includes(field) &&
+                                        parseInt(form.sizeData[size][field]) > 0
+                                        ? "rgb(102, 96, 189)" // dark grey
+                                        : isReadOnlyField
+                                          ? "#e0e0e0" // normal read-only grey
+                                          : "rgb(179, 219, 179)", // editable default
+                                    color:
+                                      isReadOnlyField &&
+                                        ["GP", "EP", "FRP", "SWRP", "MP"].includes(field) &&
+                                        parseInt(form.sizeData[size][field]) > 0
+                                        ? "#FFFFFF" // white font for dark grey
+                                        : "black", // default font color
                                   }}
                                 />
                               </td>
@@ -4756,7 +4779,7 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
   //   if (filters.cpiTo) params.append("cpiTo", filters.cpiTo);
   //   if (filters.itemName) params.append("itemName", filters.itemName);
 
-  //   window.open(`http://192.168.1.195:80/name/api/reportExcel.php?${params.toString()}`, "_blank");
+  //   window.open(`http://192.168.1.123:8080/name/api/reportExcel.php?${params.toString()}`, "_blank");
 
   //   // window.open(url, "_blank");
   // };
@@ -4788,7 +4811,7 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
       if (filters.stitchingDateFrom) payload.stitchingDateFrom = filters.stitchingDateFrom;
       if (filters.stitchingDateTo) payload.stitchingDateTo = filters.stitchingDateTo;
       if (filters.itemName) payload.itemName = filters.itemName;
-      const countResp = await fetch("http://192.168.1.195:80/name/api/reportExportCounts.php", {
+      const countResp = await fetch("http://192.168.1.123:8080/name/api/reportExportCounts.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -4802,6 +4825,10 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
           totalEntries =
             (countResult.counts.head || 0) +
             (countResult.counts.entry || 0);
+        }
+        else if (filters.reportType === "DpReport") {
+          // For Dpr Register, only entryMas
+          totalEntries = countResult.counts.entry || 0;
         } else {
           // For Summary or other types, just head
           totalEntries = countResult.counts.head || 0;
@@ -4865,14 +4892,71 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
         // }, 200);
 
         // ⏳ Kick off export
-        const response = await fetch("http://192.168.1.195:80/name/api/reportExport.php", {
+        // const response = await fetch("http://192.168.1.123:8080/name/api/reportExport.php", {
+        //   method: "POST",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify(payload),
+        // });
+        let exportUrl = "http://192.168.1.123:8080/name/api/reportExport.php"; // default
+
+        if (filters.reportType === "DpReport") {
+          exportUrl = "http://192.168.1.123:8080/name/api/export_dpr_entrymas.php";
+        }
+
+        if (filters.reportType === "DpReport") {
+          const response = await fetch(exportUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          console.log("Response status:", response.status);
+          console.log("Response headers:", [...response.headers.entries()]);
+
+          const clone = response.clone();
+          const text = await clone.text();
+          console.log("Raw response text:", text);
+          if (!response.ok) {
+            alert("❌ Failed to export DPR Register.");
+            return;
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+
+          // Format date as DDMMYY_HHMM
+          const now = new Date();
+          const pad = (n) => n.toString().padStart(2, "0");
+          const filenameDate =
+            pad(now.getDate()) +
+            pad(now.getMonth() + 1) +
+            now.getFullYear().toString().slice(-2) + // last 2 digits of year
+            "_" +
+            pad(now.getHours()) +
+            pad(now.getMinutes());
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `Dp_Report_${filenameDate}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+
+          window.URL.revokeObjectURL(url);
+          return; // stop further processing
+
+        }
+
+
+        const response = await fetch(exportUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
+
         // 🔄 In parallel, listen for live progress (optional)
-        // const eventSource = new EventSource("http://192.168.1.195:80/name/api/reportExport.php");
+        // const eventSource = new EventSource("http://192.168.1.123:8080/name/api/reportExport.php");
         // eventSource.onmessage = (event) => {
         //   const msg = JSON.parse(event.data);
 
@@ -4889,7 +4973,7 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
 
         // 2️⃣ Convert payload → query string for SSE
         // const query = new URLSearchParams(payload).toString();
-        // const sseUrl = `http://192.168.1.195:80/name/api/reportExport.php?${query}`;
+        // const sseUrl = `http://192.168.1.123:8080/name/api/reportExport.php?${query}`;
 
         // // 3️⃣ Open SSE connection with filters applied
         // const eventSource = new EventSource(sseUrl);
@@ -6452,6 +6536,18 @@ function FilterComponent({ cutPanelForm, selectedYear }) {
                 />
                 <span>LP Summary</span>
               </label>
+              <label className="radio-label">
+                <input
+                  type="radio"
+                  name="reportType"
+                  value="DpReport"
+                  checked={filters.reportType === "DpReport"}
+                  onChange={(e) => handleInputChange("reportType", e.target.value)}
+                  className="radio-input"
+                />
+                <span>DP Report</span>
+              </label>
+
             </div>
             {/* <div className="radio-group">
               <label className="radio-label">
